@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imagen API Demo - Image Retouching</title>
+    <link rel="stylesheet" href="index.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.sh/@google/genai@1.0.0"
+        }
+      }
+    </script>
+</head>
+<body>
+    <header>
+      <h1>Image Retouching Studio</h1>
+      <p>Upload an image and tell the AI how to edit it.</p>
+    </header>
+    <main>
+      <div class="controls">
+        <div class="file-input-wrapper">
+          <input type="file" id="image-upload" accept="image/*" hidden>
+          <label for="image-upload" class="button">Upload Image</label>
+        </div>
+        <textarea id="prompt-input" rows="3" placeholder="e.g., make the cat wear a wizard hat"></textarea>
+        <div id="prompt-suggestions"></div>
+        <div class="settings">
+            <div class="setting-item">
+                <label for="aspect-ratio-select">Aspect Ratio:</label>
+                <select id="aspect-ratio-select" class="select-dropdown">
+                    <option value="1:1">Square (1:1)</option>
+                    <option value="3:4">Portrait (3:4)</option>
+                    <option value="4:3">Landscape (4:3)</option>
+                    <option value="16:9">Widescreen (16:9)</option>
+                </select>
+            </div>
+        </div>
+        <button id="retouch-button" disabled>Retouch Image</button>
+      </div>
+      <div id="image-display-area">
+          <div id="original-container">
+            <h2>Original</h2>
+            <div id="original-image-gallery" class="gallery-container">
+                <p class="placeholder-text">Upload an image to see it here</p>
+            </div>
+          </div>
+          <div id="retouched-container">
+            <h2>Retouched <span id="retouched-count"></span></h2>
+            <div id="retouched-image-gallery" class="gallery-container">
+                <p class="placeholder-text">Your retouched images will appear here</p>
+            </div>
+          </div>
+      </div>
+    </main>
+    <script type="module" src="index.tsx"></script>
+</body>
+</html>

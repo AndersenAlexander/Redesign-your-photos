@@ -1,0 +1,239 @@
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #38383e;
+  color: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+header h1 {
+  margin: 0;
+}
+
+main {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background-color: #4a4a50;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.file-input-wrapper {
+  display: flex;
+}
+
+textarea#prompt-input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #666;
+  background-color: #38383e;
+  color: #f0f0f0;
+  font-family: sans-serif;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+#prompt-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suggestion-chip {
+  padding: 6px 12px;
+  background-color: #5a5a60;
+  border: 1px solid #777;
+  color: #f0f0f0;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 14px;
+}
+
+.suggestion-chip:hover {
+  background-color: #6a6a70;
+}
+
+.settings {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.select-dropdown {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #666;
+  background-color: #38383e;
+  color: #f0f0f0;
+  font-family: sans-serif;
+  cursor: pointer;
+}
+
+.button, button#retouch-button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  text-align: center;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.button:hover, button#retouch-button:hover:not(:disabled) {
+  background-color: #0069d9;
+}
+
+button#retouch-button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+#image-display-area {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+#original-container, #retouched-container {
+  display: flex;
+  flex-direction: column;
+}
+
+#retouched-container h2 span {
+  font-weight: normal;
+  font-size: 0.8em;
+  color: #cccccc;
+}
+
+.gallery-container {
+  flex-grow: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border: 6px solid #4a4a50;
+  background-color: #2c2c31;
+  min-height: 300px;
+  position: relative;
+  box-sizing: border-box;
+  padding: 10px;
+}
+
+.placeholder-text {
+    color: #888;
+}
+
+#original-image-gallery img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#retouched-image-gallery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+}
+
+.retouched-image-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: transform 0.2s ease-in-out, border 0.2s ease-in-out;
+}
+
+.retouched-image-container:hover {
+  transform: scale(1.03);
+  border: 2px solid #007bff;
+}
+
+.retouched-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.download-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  /* Downwards arrow symbol */
+  content: '\21E3';
+}
+
+.retouched-image-container:hover .download-btn {
+  opacity: 1;
+}
+
+
+.loader {
+  border: 8px solid #f3f3f3;
+  border-top: 8px solid #007bff;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 2s linear infinite;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  #image-display-area {
+    grid-template-columns: 1fr;
+  }
+}
