@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Imagen API Demo - Image Retouching</title>
+    <title>Image Retouching Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
     <script type="importmap">
       {
@@ -16,6 +19,7 @@
 <body>
     <header>
       <h1>Image Retouching Studio</h1>
+      <button id="theme-toggle" title="Toggle dark/light mode">☀️</button>
       <p>Upload an image and tell the AI how to edit it.</p>
     </header>
     <main>
@@ -37,21 +41,38 @@
                 </select>
             </div>
         </div>
-        <button id="retouch-button" disabled>Retouch Image</button>
+        <div class="action-buttons-container">
+          <button id="retouch-button" disabled>Retouch Image</button>
+          <button id="enhance-colors-button" disabled>Enhance Colors</button>
+        </div>
       </div>
-      <div id="image-display-area">
-          <div id="original-container">
-            <h2>Original</h2>
-            <div id="original-image-gallery" class="gallery-container">
-                <p class="placeholder-text">Upload an image to see it here</p>
-            </div>
-          </div>
-          <div id="retouched-container">
-            <h2>Retouched <span id="retouched-count"></span></h2>
-            <div id="retouched-image-gallery" class="gallery-container">
-                <p class="placeholder-text">Your retouched images will appear here</p>
-            </div>
-          </div>
+      <div id="history-container">
+        <div class="history-header">
+            <h2>History</h2>
+            <button id="clear-history-button" class="button" title="Clear all history entries">Clear History</button>
+        </div>
+        <ul id="history-list">
+            <li class="placeholder-text">Your retouching history will appear here.</li>
+        </ul>
+      </div>
+      <div id="original-container">
+        <h2>Original</h2>
+        <div id="original-image-gallery" class="gallery-container">
+            <p class="placeholder-text">Upload an image to see it here</p>
+        </div>
+      </div>
+      <div id="retouched-container">
+        <h2>Retouched <span id="retouched-count"></span></h2>
+        <div id="filter-controls">
+            <button class="filter-btn" data-filter="grayscale">Grayscale</button>
+            <button class="filter-btn" data-filter="sepia">Sepia</button>
+            <button class="filter-btn" data-filter="blur">Blur</button>
+            <button class="filter-btn" data-filter="sharpen">Sharpen</button>
+            <button class="filter-btn" id="reset-filters">Reset</button>
+        </div>
+        <div id="retouched-image-gallery" class="gallery-container">
+            <p class="placeholder-text">Your retouched images will appear here</p>
+        </div>
       </div>
     </main>
     <script type="module" src="index.tsx"></script>
