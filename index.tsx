@@ -11,8 +11,10 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const imageUploadInput = document.getElementById('image-upload') as HTMLInputElement;
 const promptInput = document.getElementById('prompt-input') as HTMLTextAreaElement;
+const negativePromptInput = document.getElementById('negative-prompt-input') as HTMLTextAreaElement;
 const retouchButton = document.getElementById('retouch-button') as HTMLButtonElement;
 const enhanceColorsButton = document.getElementById('enhance-colors-button') as HTMLButtonElement;
+const magicEditButton = document.getElementById('magic-edit-button') as HTMLButtonElement;
 const originalImageGallery = document.getElementById('original-image-gallery');
 const retouchedImageGallery = document.getElementById('retouched-image-gallery');
 const suggestionsContainer = document.getElementById('prompt-suggestions');
@@ -23,9 +25,21 @@ const clearHistoryButton = document.getElementById('clear-history-button') as HT
 const themeToggleButton = document.getElementById('theme-toggle') as HTMLButtonElement;
 const filterButtons = document.querySelectorAll('#filter-controls .filter-btn[data-filter]');
 const resetFiltersButton = document.getElementById('reset-filters') as HTMLButtonElement;
+const mainElement = document.querySelector('main') as HTMLElement;
+const originalHeader = document.getElementById('original-header') as HTMLElement;
 
+// Masking elements
+const maskCanvas = document.getElementById('mask-canvas') as HTMLCanvasElement;
+const maskCtx = maskCanvas.getContext('2d');
+const maskingControls = document.getElementById('masking-controls') as HTMLDivElement;
+const brushSizeSlider = document.getElementById('brush-size') as HTMLInputElement;
+const maskDoneButton = document.getElementById('mask-done') as HTMLButtonElement;
+const maskClearButton = document.getElementById('mask-clear') as HTMLButtonElement;
+const maskCancelButton = document.getElementById('mask-cancel') as HTMLButtonElement;
 
 let currentOriginalImage: { data: string; mimeType: string; } | null = null;
+let currentMaskData: { data: string; mimeType: string; } | null = null;
+
 const activeFilters: { [key: string]: boolean } = {
   grayscale: false,
   sepia: false,
@@ -156,6 +170,14 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+function clearMaskState() {
+    currentMaskData = null;
+    originalHeader.classList.remove('mask-active-indicator');
+    if (maskCtx) {
+        maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    }
+}
+
 // Handle image upload
 imageUploadInput.addEventListener('change', async (event) => {
   const files = (event.target as HTMLInputElement).files;
@@ -163,11 +185,15 @@ imageUploadInput.addEventListener('change', async (event) => {
     const file = files[0];
 
     // Clear previous state when a new image is uploaded
-    originalImageGallery.innerHTML = '';
+    originalImageGallery.innerHTML = '<p class="placeholder-text">Upload an image to see it here</p>';
+    const placeholder = originalImageGallery.querySelector('.placeholder-text');
+    if (placeholder) originalImageGallery.removeChild(placeholder);
+
     retouchedImageGallery.innerHTML = '<p class="placeholder-text">Your retouched images will appear here</p>';
     retouchedCountSpan.textContent = '';
     activeHistoryId = null;
     resetFilters();
+    clearMaskState();
     renderHistory(); // Deselect active history item visually
 
     // Read and display the image
@@ -185,18 +211,21 @@ imageUploadInput.addEventListener('change', async (event) => {
         currentOriginalImage = { data: base64, mimeType: file.type };
         retouchButton.disabled = false;
         enhanceColorsButton.disabled = false;
+        magicEditButton.disabled = false;
     } catch(e) {
         console.error("Error processing file:", e);
         alert("There was an error processing your image.");
         currentOriginalImage = null;
         retouchButton.disabled = true;
         enhanceColorsButton.disabled = true;
+        magicEditButton.disabled = true;
     }
 
   } else {
     currentOriginalImage = null;
     retouchButton.disabled = true;
     enhanceColorsButton.disabled = true;
+    magicEditButton.disabled = true;
   }
 });
 
@@ -207,6 +236,7 @@ const HISTORY_KEY = 'imageRetouchHistory';
 interface HistoryItem {
   id: string; // Using timestamp as a string
   prompt: string;
+  negativePrompt?: string;
   originalImage: { data: string; mimeType: string; };
   retouchedImages: { data: string; mimeType: string; }[];
   aspectRatio: string;
@@ -253,6 +283,7 @@ function restoreFromHistory(id: string) {
   if (!item) return;
 
   resetFilters();
+  clearMaskState();
 
   activeHistoryId = id;
   currentOriginalImage = item.originalImage;
@@ -272,11 +303,13 @@ function restoreFromHistory(id: string) {
 
   // Restore controls state
   promptInput.value = item.prompt;
+  negativePromptInput.value = item.negativePrompt || '';
   aspectRatioSelect.value = item.aspectRatio;
   
   // Enable action buttons
   retouchButton.disabled = false;
   enhanceColorsButton.disabled = false;
+  magicEditButton.disabled = false;
   
   // Rerender history list to show the active state
   renderHistory();
@@ -522,6 +555,7 @@ async function generateImages(prompt: string) {
 
   retouchButton.disabled = true;
   enhanceColorsButton.disabled = true;
+  magicEditButton.disabled = true;
   suggestionsContainer!.childNodes.forEach(child => ((child as HTMLButtonElement).disabled = true));
   retouchedCountSpan.textContent = '';
 
@@ -531,35 +565,46 @@ async function generateImages(prompt: string) {
     retouchedImageGallery.innerHTML = '<div class="loader"></div>';
   }
 
-  const TOTAL_IMAGES_TO_GENERATE = 4;
+  const isMaskedEdit = currentMaskData !== null;
+  const TOTAL_IMAGES_TO_GENERATE = isMaskedEdit ? 1 : 4;
+  const negativePromptValue = negativePromptInput.value.trim();
 
   try {
     const { data: base64ImageData, mimeType } = currentOriginalImage;
     const selectedAspectRatio = aspectRatioSelect.value;
 
-    const imagePart = {
-      inlineData: {
-        data: base64ImageData,
-        mimeType: mimeType,
-      },
-    };
+    const imagePart = { inlineData: { data: base64ImageData, mimeType: mimeType } };
+    
+    let promises: Promise<GenerateContentResponse>[];
 
-    // Create and run 4 promises in parallel
-    const promises: Promise<GenerateContentResponse>[] = Array.from({ length: TOTAL_IMAGES_TO_GENERATE }).map((_, index) => {
-      const textPart = {
-        text: `${prompt} (style variation ${index + 1}). IMPORTANT: The output image must have a ${selectedAspectRatio} aspect ratio.`,
-      };
+    if (isMaskedEdit) {
+        const maskPart = { inlineData: { data: currentMaskData.data, mimeType: currentMaskData.mimeType } };
+        let finalPrompt = prompt;
+        if (negativePromptValue) {
+            finalPrompt += `\n\nDO NOT INCLUDE: ${negativePromptValue}`;
+        }
+        const textPart = { text: finalPrompt };
+        
+        promises = [ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: { parts: [imagePart, textPart, maskPart] },
+            config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
+        })];
+    } else {
+        promises = Array.from({ length: TOTAL_IMAGES_TO_GENERATE }).map((_, index) => {
+          let finalPrompt = `${prompt} (style variation ${index + 1}). IMPORTANT: The output image must have a ${selectedAspectRatio} aspect ratio.`;
+          if (negativePromptValue) {
+            finalPrompt += `\n\nDO NOT INCLUDE: ${negativePromptValue}`;
+          }
+          const textPart = { text: finalPrompt };
 
-      return ai.models.generateContent({
-        model: 'gemini-2.5-flash-image-preview',
-        contents: {
-          parts: [imagePart, textPart],
-        },
-        config: {
-          responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
-      });
-    });
+          return ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: { parts: [imagePart, textPart] },
+            config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
+          });
+        });
+    }
     
     const results = await Promise.allSettled(promises);
     const successfullyGeneratedImages: { data: string; mimeType: string }[] = [];
@@ -590,6 +635,7 @@ async function generateImages(prompt: string) {
     if (successfullyGeneratedImages.length > 0) {
       addHistoryItem({
         prompt,
+        negativePrompt: negativePromptValue,
         originalImage: currentOriginalImage,
         retouchedImages: successfullyGeneratedImages,
         aspectRatio: selectedAspectRatio,
@@ -609,7 +655,9 @@ async function generateImages(prompt: string) {
   } finally {
     retouchButton.disabled = false;
     enhanceColorsButton.disabled = false;
+    magicEditButton.disabled = false;
     suggestionsContainer!.childNodes.forEach(child => ((child as HTMLButtonElement).disabled = false));
+    clearMaskState(); // Always clear mask after an attempt
   }
 }
 
@@ -628,6 +676,117 @@ enhanceColorsButton.addEventListener('click', async () => {
   await generateImages(enhancePrompt);
 });
 
+
+// --- MASKING LOGIC ---
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
+
+function startMaskingMode() {
+    const originalImg = originalImageGallery?.querySelector('img');
+    if (!originalImg || !maskCtx) return;
+
+    // Set canvas dimensions to match the displayed image
+    const rect = originalImg.getBoundingClientRect();
+    const galleryRect = originalImageGallery.getBoundingClientRect();
+    maskCanvas.width = rect.width;
+    maskCanvas.height = rect.height;
+    maskCanvas.style.top = `${rect.top - galleryRect.top}px`;
+    maskCanvas.style.left = `${rect.left - galleryRect.left}px`;
+
+    mainElement.classList.add('masking-active');
+    maskingControls.classList.remove('hidden');
+    
+    maskCtx.lineJoin = 'round';
+    maskCtx.lineCap = 'round';
+    maskCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+}
+
+function exitMaskingMode() {
+    mainElement.classList.remove('masking-active');
+    maskingControls.classList.add('hidden');
+    if (maskCtx) {
+        maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    }
+}
+
+function finishMasking() {
+    const originalImg = originalImageGallery?.querySelector('img');
+    if (!originalImg || !maskCtx) return;
+
+    // Create an off-screen canvas to generate the final black and white mask
+    const finalMaskCanvas = document.createElement('canvas');
+    finalMaskCanvas.width = originalImg.naturalWidth;
+    finalMaskCanvas.height = originalImg.naturalHeight;
+    const finalCtx = finalMaskCanvas.getContext('2d');
+
+    if (!finalCtx) return;
+
+    // Fill with white (area to keep)
+    finalCtx.fillStyle = 'white';
+    finalCtx.fillRect(0, 0, finalMaskCanvas.width, finalMaskCanvas.height);
+
+    // Draw the user's mask in black (area to edit)
+    // We need to scale the drawing from the displayed size to the natural image size
+    const scaleX = originalImg.naturalWidth / maskCanvas.width;
+    const scaleY = originalImg.naturalHeight / maskCanvas.height;
+    finalCtx.save();
+    finalCtx.scale(scaleX, scaleY);
+    finalCtx.drawImage(maskCanvas, 0, 0);
+    finalCtx.restore();
+    
+    // Use globalCompositeOperation to turn the red drawing into a black mask
+    finalCtx.globalCompositeOperation = 'source-in';
+    finalCtx.fillStyle = 'black';
+    finalCtx.fillRect(0, 0, finalMaskCanvas.width, finalMaskCanvas.height);
+
+    const base64Mask = finalMaskCanvas.toDataURL('image/png').split(',')[1];
+    currentMaskData = { data: base64Mask, mimeType: 'image/png' };
+    
+    originalHeader.classList.add('mask-active-indicator');
+    exitMaskingMode();
+}
+
+function draw(e: MouseEvent | TouchEvent) {
+    if (!isDrawing || !maskCtx) return;
+    
+    e.preventDefault();
+    const rect = maskCanvas.getBoundingClientRect();
+    const x = ('touches' in e ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = ('touches' in e ? e.touches[0].clientY : e.clientY) - rect.top;
+
+    maskCtx.lineWidth = Number(brushSizeSlider.value);
+    maskCtx.beginPath();
+    maskCtx.moveTo(lastX, lastY);
+    maskCtx.lineTo(x, y);
+    maskCtx.stroke();
+    [lastX, lastY] = [x, y];
+}
+
+magicEditButton.addEventListener('click', startMaskingMode);
+maskDoneButton.addEventListener('click', finishMasking);
+maskCancelButton.addEventListener('click', exitMaskingMode);
+maskClearButton.addEventListener('click', () => {
+    maskCtx?.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+});
+
+maskCanvas.addEventListener('mousedown', (e) => {
+    isDrawing = true;
+    const rect = maskCanvas.getBoundingClientRect();
+    [lastX, lastY] = [e.clientX - rect.left, e.clientY - rect.top];
+});
+
+maskCanvas.addEventListener('mousemove', draw);
+maskCanvas.addEventListener('mouseup', () => isDrawing = false);
+maskCanvas.addEventListener('mouseleave', () => isDrawing = false);
+
+maskCanvas.addEventListener('touchstart', (e) => {
+    isDrawing = true;
+    const rect = maskCanvas.getBoundingClientRect();
+    [lastX, lastY] = [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+});
+maskCanvas.addEventListener('touchmove', draw);
+maskCanvas.addEventListener('touchend', () => isDrawing = false);
 
 // Initial setup
 document.addEventListener('DOMContentLoaded', () => {

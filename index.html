@@ -29,6 +29,7 @@
           <label for="image-upload" class="button">Upload Image</label>
         </div>
         <textarea id="prompt-input" rows="3" placeholder="e.g., make the cat wear a wizard hat"></textarea>
+        <textarea id="negative-prompt-input" rows="2" placeholder="Things to avoid... e.g., text, blurry, watermark"></textarea>
         <div id="prompt-suggestions"></div>
         <div class="settings">
             <div class="setting-item">
@@ -44,6 +45,7 @@
         <div class="action-buttons-container">
           <button id="retouch-button" disabled>Retouch Image</button>
           <button id="enhance-colors-button" disabled>Enhance Colors</button>
+          <button id="magic-edit-button" class="magic-btn" disabled>Magic Edit</button>
         </div>
       </div>
       <div id="history-container">
@@ -56,9 +58,21 @@
         </ul>
       </div>
       <div id="original-container">
-        <h2>Original</h2>
+        <h2 id="original-header">Original</h2>
         <div id="original-image-gallery" class="gallery-container">
             <p class="placeholder-text">Upload an image to see it here</p>
+            <canvas id="mask-canvas"></canvas>
+            <div id="masking-controls" class="hidden">
+                <div class="brush-slider-container">
+                    <label for="brush-size">Brush Size</label>
+                    <input type="range" id="brush-size" min="5" max="100" value="30">
+                </div>
+                <div class="masking-actions">
+                    <button id="mask-done">Done</button>
+                    <button id="mask-clear">Clear</button>
+                    <button id="mask-cancel">Cancel</button>
+                </div>
+            </div>
         </div>
       </div>
       <div id="retouched-container">

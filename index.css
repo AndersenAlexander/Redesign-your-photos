@@ -13,6 +13,7 @@
   --button-primary-gradient: linear-gradient(145deg, #2e86de, #1e6ab0);
   --button-secondary-gradient: linear-gradient(145deg, #48c072, #2d9a54);
   --button-danger-gradient: linear-gradient(145deg, #e74c3c, #c0392b);
+  --button-magic-gradient: linear-gradient(145deg, #9b59b6, #8e44ad);
   
   --button-shadow-dark: #222428;
   --button-shadow-light: #32363c;
@@ -50,6 +51,7 @@ body.light-mode {
   --button-primary-gradient: linear-gradient(145deg, #3793ff, #1e7bf5);
   --button-secondary-gradient: linear-gradient(145deg, #2ecc71, #25a25a);
   --button-danger-gradient: linear-gradient(145deg, #ff5252, #e74c3c);
+  --button-magic-gradient: linear-gradient(145deg, #a569bd, #9b59b6);
 
   --button-shadow-dark: #c8d0e7;
   --button-shadow-light: #ffffff;
@@ -115,6 +117,15 @@ main {
     "original retouched";
 }
 
+main.masking-active .controls button:not(.magic-btn), 
+main.masking-active .controls textarea,
+main.masking-active .controls select,
+main.masking-active .controls label[for="image-upload"],
+main.masking-active #history-container {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
 .controls, #history-container {
   background-color: var(--controls-bg);
   padding: 25px;
@@ -130,7 +141,7 @@ main {
   gap: 20px;
 }
 
-textarea#prompt-input, .select-dropdown {
+textarea#prompt-input, textarea#negative-prompt-input, .select-dropdown {
   width: 100%;
   padding: 12px;
   border-radius: 10px;
@@ -143,7 +154,7 @@ textarea#prompt-input, .select-dropdown {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-textarea#prompt-input:focus, .select-dropdown:focus {
+textarea#prompt-input:focus, textarea#negative-prompt-input:focus, .select-dropdown:focus {
   outline: none;
   border-color: var(--history-item-active-border);
   box-shadow: 0 0 0 3px var(--history-item-active-border-glow, rgba(46, 134, 222, 0.3));
@@ -175,10 +186,10 @@ textarea#prompt-input:focus, .select-dropdown:focus {
 .settings { display: flex; gap: 20px; align-items: center; }
 .setting-item { display: flex; align-items: center; gap: 10px; }
 
-.action-buttons-container { display: flex; gap: 15px; }
-.action-buttons-container button { flex: 1; }
+.action-buttons-container { display: flex; gap: 15px; flex-wrap: wrap; }
+.action-buttons-container button { flex: 1; min-width: 120px; }
 
-.button, #retouch-button, #enhance-colors-button, #clear-history-button, #theme-toggle {
+.button, #retouch-button, #enhance-colors-button, #clear-history-button, #theme-toggle, .magic-btn {
   padding: 12px 20px;
   border: none;
   border-radius: 12px;
@@ -201,6 +212,7 @@ textarea#prompt-input:focus, .select-dropdown:focus {
 #retouch-button:hover:not(:disabled),
 #enhance-colors-button:hover:not(:disabled),
 #clear-history-button:hover:not(:disabled),
+.magic-btn:hover:not(:disabled),
 #theme-toggle:hover {
     transform: translateY(-3px);
     filter: brightness(1.1);
@@ -213,6 +225,7 @@ textarea#prompt-input:focus, .select-dropdown:focus {
 #retouch-button:active:not(:disabled),
 #enhance-colors-button:active:not(:disabled),
 #clear-history-button:active:not(:disabled),
+.magic-btn:active:not(:disabled),
 #theme-toggle:active {
     transform: translateY(1px);
     filter: brightness(0.95);
@@ -224,6 +237,7 @@ textarea#prompt-input:focus, .select-dropdown:focus {
 #retouch-button, label[for="image-upload"] { background: var(--button-primary-gradient); }
 #enhance-colors-button { background: var(--button-secondary-gradient); }
 #clear-history-button { background: var(--button-danger-gradient); font-size: 14px; padding: 10px 18px; }
+.magic-btn { background: var(--button-magic-gradient); }
 
 button:disabled, .button:disabled {
   background: var(--button-disabled-bg);
@@ -277,6 +291,18 @@ button:disabled, .button:disabled {
   display: flex;
   flex-direction: column;
 }
+#original-header.mask-active-indicator::after {
+  content: '✨';
+  margin-left: 8px;
+  font-size: 1em;
+  display: inline-block;
+  animation: sparkle 1.5s infinite;
+}
+@keyframes sparkle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
 
 #retouched-container {
   grid-area: retouched;
@@ -288,11 +314,58 @@ button:disabled, .button:disabled {
 
 .gallery-container { flex-grow: 1; display: flex; justify-content: center; align-items: center; gap: 10px; background-color: var(--gallery-bg); min-height: 300px; position: relative; box-sizing: border-box; padding: 15px; border-radius: 20px; border: 1px solid var(--border-color); }
 .placeholder-text { color: var(--placeholder-text); font-weight: 500; }
+#original-image-gallery { position: relative; }
 #original-image-gallery img { max-width: 100%; max-height: 100%; object-fit: contain; }
 #retouched-image-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; height: 100%; }
 .retouched-image-container { position: relative; width: 100%; height: 100%; border-radius: 12px; overflow: hidden; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
 .retouched-image-container:hover { transform: scale(1.03); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
 .retouched-image-container img { width: 100%; height: 100%; object-fit: cover; transition: filter 0.3s ease-in-out; }
+
+/* Masking Controls */
+#mask-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    display: none; /* Hidden by default */
+    z-index: 10;
+}
+main.masking-active #mask-canvas { display: block; }
+.hidden { display: none !important; }
+
+#masking-controls {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30,30,30,0.8);
+    backdrop-filter: blur(5px);
+    padding: 10px 15px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    z-index: 20;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.brush-slider-container { display: flex; align-items: center; gap: 10px; color: white; }
+#masking-controls label { font-size: 14px; }
+.masking-actions { display: flex; gap: 10px; }
+#masking-controls button {
+    background: var(--suggestion-chip-bg);
+    border: 1px solid var(--suggestion-chip-border);
+    color: var(--text-color);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+#masking-controls button:hover { background: var(--suggestion-chip-hover); }
+#masking-controls button#mask-done { background: var(--button-secondary-gradient); color: white; border: none; }
+
 
 .image-actions {
   position: absolute;
