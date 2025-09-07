@@ -518,6 +518,15 @@ function renderRetouchedGallery(images: { data: string; mimeType: string }[], as
             </svg>`;
         shareBtn.onclick = () => shareImage(img.src, image.mimeType, prompt, shareBtn);
 
+        const compareBtn = document.createElement('button');
+        compareBtn.className = 'image-action-btn';
+        compareBtn.title = 'Compare Before/After';
+        compareBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M7 14V2H1.5l2 3h-2l2 3h-2l2 3h-2l2 3zM8 14V2l.5.5V13.5zM14.5 2H9v12h5.5l-2-3h2l-2-3h2l-2-3h2l-2-3z"/>
+            </svg>`;
+        compareBtn.onclick = () => toggleComparisonView(container);
+
         const downloadBtn = document.createElement('button');
         downloadBtn.className = 'image-action-btn';
         downloadBtn.title = 'Download Image';
@@ -537,6 +546,7 @@ function renderRetouchedGallery(images: { data: string; mimeType: string }[], as
         
         actionsContainer.appendChild(upscaleBtn);
         actionsContainer.appendChild(shareBtn);
+        actionsContainer.appendChild(compareBtn);
         actionsContainer.appendChild(downloadBtn);
         container.appendChild(img);
         container.appendChild(actionsContainer);
@@ -787,6 +797,76 @@ maskCanvas.addEventListener('touchstart', (e) => {
 });
 maskCanvas.addEventListener('touchmove', draw);
 maskCanvas.addEventListener('touchend', () => isDrawing = false);
+
+
+// --- Before/After Slider Logic ---
+function initSliderEvents(slider: HTMLDivElement, beforeImage: HTMLImageElement, container: HTMLDivElement) {
+    let isDragging = false;
+
+    const moveSlider = (clientX: number) => {
+        const rect = container.getBoundingClientRect();
+        let pos = (clientX - rect.left) / rect.width * 100;
+        pos = Math.max(0, Math.min(100, pos));
+
+        slider.style.left = `${pos}%`;
+        beforeImage.style.clipPath = `inset(0 ${100 - pos}% 0 0)`;
+    };
+
+    const onSlide = (e: MouseEvent | TouchEvent) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        moveSlider(clientX);
+    };
+
+    const stopSlide = () => {
+        isDragging = false;
+        document.removeEventListener('mousemove', onSlide);
+        document.removeEventListener('touchmove', onSlide);
+        document.removeEventListener('mouseup', stopSlide);
+        document.removeEventListener('touchend', stopSlide);
+    };
+    
+    const startSlide = (e: MouseEvent | TouchEvent) => {
+        isDragging = true;
+        e.preventDefault();
+        document.addEventListener('mousemove', onSlide);
+        document.addEventListener('touchmove', onSlide);
+        document.addEventListener('mouseup', stopSlide);
+        document.addEventListener('touchend', stopSlide);
+    };
+
+    slider.addEventListener('mousedown', startSlide);
+    slider.addEventListener('touchstart', startSlide);
+}
+
+function toggleComparisonView(container: HTMLDivElement) {
+    if (!currentOriginalImage) return;
+
+    // Toggling OFF
+    const existingSlider = container.querySelector<HTMLDivElement>('.comparison-slider');
+    if (existingSlider) {
+        const beforeImage = container.querySelector('.before-image');
+        beforeImage?.remove();
+        existingSlider.remove();
+        container.classList.remove('comparison-active');
+        return;
+    }
+
+    // Toggling ON
+    const beforeImage = new Image();
+    beforeImage.className = 'before-image';
+    beforeImage.src = `data:${currentOriginalImage.mimeType};base64,${currentOriginalImage.data}`;
+
+    const slider = document.createElement('div');
+    slider.className = 'comparison-slider';
+
+    container.appendChild(beforeImage);
+    container.appendChild(slider);
+    container.classList.add('comparison-active');
+    
+    initSliderEvents(slider, beforeImage, container);
+}
 
 // Initial setup
 document.addEventListener('DOMContentLoaded', () => {

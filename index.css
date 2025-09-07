@@ -376,6 +376,7 @@ main.masking-active #mask-canvas { display: block; }
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 0.2s, transform 0.2s;
+  z-index: 7; /* Ensure actions are above before-image */
 }
 
 .retouched-image-container:hover .image-actions {
@@ -489,6 +490,60 @@ main.masking-active #mask-canvas { display: block; }
 /* Loader */
 .loader { border: 8px solid var(--loader-track-color); border-top: 8px solid var(--loader-color); border-radius: 50%; width: 60px; height: 60px; animation: spin 2s linear infinite; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Comparison Slider */
+.retouched-image-container .before-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  clip-path: inset(0 50% 0 0);
+  z-index: 5;
+  pointer-events: none;
+  display: none;
+}
+
+.retouched-image-container .comparison-slider {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 4px;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.7);
+  cursor: ew-resize;
+  transform: translateX(-50%);
+  z-index: 6;
+  pointer-events: auto;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.retouched-image-container .comparison-slider::after {
+  content: '↔';
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+  color: white;
+  padding: 6px;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: bold;
+  border: 1px solid rgba(255,255,255,0.5);
+}
+
+.retouched-image-container.comparison-active .before-image,
+.retouched-image-container.comparison-active .comparison-slider {
+    display: block;
+}
+
+.retouched-image-container.comparison-active .comparison-slider {
+    display: flex;
+}
 
 @media (max-width: 768px) {
   main {
